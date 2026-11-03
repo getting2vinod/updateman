@@ -1,0 +1,24 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: FastAPI App (uvicorn)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "uvicorn",
+            "cwd": "${workspaceFolder}",
+            "args": [
+                "app.main:app",
+                "--reload",
+                "--port", "4016",
+                "--host", "0.0.0.0"
+            ],
+            "env": {
+                "ROUTE_PATH": ""
+            },
+            "jinja": true,
+            "justMyCode": true
+        }
+    ]
+}
+

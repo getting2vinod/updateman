@@ -1,0 +1,17 @@
+__pycache__
+*.pyc
+.venv/
+venv/
+.env
+.env.local
+.git/
+.gitignore
+.vscode/
+tests/
+data/*.db
+data/*.sqlite
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+README.md
+Makefile

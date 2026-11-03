@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard — {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="header-section">
+    <h1>Software &amp; Firmware Updates</h1>
+    <p class="subtitle">Manage build artifacts, deploy over-the-air (OTA) updates, and track device check-ins.</p>
+</div>
+
+<!-- Stats Overview -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-label">Applications</div>
+        <div class="stat-value">{{ stats.app_count | default(0) }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Total Builds</div>
+        <div class="stat-value">{{ stats.build_count | default(0) }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Active Devices</div>
+        <div class="stat-value">{{ stats.device_count | default(0) }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Total Check-ins</div>
+        <div class="stat-value">{{ stats.total_requests | default(0) }}</div>
+    </div>
+</div>
+
+<!-- Quick Integration Guide -->
+<div class="card info-box">
+    <h2 class="card-title">📡 Remote Client Integration</h2>
+    <p>Clients query the latest available binary using standard HTTP requests:</p>
+    <div class="code-container">
+        <code>GET {{ base_url }}/updates/&lt;device-id&gt;/&lt;app-name&gt;/version.txt</code>
+        <button class="btn btn-sm btn-secondary copy-btn" data-clipboard="{{ base_url }}/updates/<device-id>/<app-name>/version.txt">Copy URL</button>
+    </div>
+    <p style="margin-top: 8px; font-size: 0.88rem; color: var(--text-muted);">
+        The server resolves the latest version in <code>updates/&lt;app-name&gt;</code>. To roll back, remove the latest folder or click Rollback below; the server automatically supplies the previous version.
+    </p>
+</div>
+
+<!-- Applications Table -->
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <h2 class="card-title" style="margin-bottom: 0;">Managed Applications</h2>
+        <a href="#upload-section" class="btn btn-primary btn-sm">+ Upload New Build</a>
+    </div>
+
+    {% if apps %}
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>App Name</th>
+                    <th>Active Version</th>
+                    <th>Latest Build</th>
+                    <th>Versions</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for app in apps %}
+                <tr>
+                    <td>
+                        <a href="{{ ROUTE_PATH }}/apps/{{ app.name }}" style="font-weight: 600; color: var(--primary); text-decoration: none;">
+                            📂 {{ app.name }}
+                        </a>
+                    </td>
+                    <td>
+                        {% if app.latest_version %}
+                        <span class="badge badge-success">{{ app.latest_version }}</span>
+                        {% else %}
+                        <span class="badge badge-secondary">No builds</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if app.latest_filename %}
+                        <span style="font-size: 0.88rem;">{{ app.latest_filename }}</span>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">
+                            {{ (app.latest_filesize / 1024) | round(1) }} KB
+                        </div>
+                        {% else %}
+                        <span style="color: var(--text-muted);">&mdash;</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="badge">{{ app.versions_count }}</span>
+                    </td>
+                    <td>
+                        <div style="display: flex; gap: 6px; align-items: center;">
+                            {% if app.latest_version %}
+                            <a href="{{ ROUTE_PATH }}/updates/{{ app.name }}/download" class="btn btn-sm btn-secondary" title="Download latest binary">
+                                ⬇️ Download
+                            </a>
+
+                            <form method="POST" action="{{ ROUTE_PATH }}/apps/{{ app.name }}/rollback" onsubmit="return confirm('Roll back {{ app.name }}? This will remove latest version {{ app.latest_version }} and activate the previous version.');" style="display: inline;">
+                                <button type="submit" class="btn btn-sm btn-warning" title="Delete latest version and roll back">
+                                    🔄 Rollback
+                                </button>
+                            </form>
+                            {% endif %}
+                            <a href="{{ ROUTE_PATH }}/apps/{{ app.name }}" class="btn btn-sm btn-outline">
+                                View
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div style="text-align: center; padding: 36px 12px; color: var(--text-muted);">
+        <p>No applications or builds uploaded yet.</p>
+        <p style="font-size: 0.9rem;">Upload your first binary build below to get started.</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Upload New Build Form -->
+<div class="card" id="upload-section">
+    <h2 class="card-title">🚀 Upload Build / Binary</h2>
+    <p class="subtitle" style="margin-bottom: 16px;">
+        Upload a firmware image, binary, zip, or executable. Creates <code>updates/&lt;app-name&gt;/&lt;version&gt;/</code>.
+    </p>
+
+    <form method="POST" action="{{ ROUTE_PATH }}/upload" enctype="multipart/form-data">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+            <div class="form-group">
+                <label for="app_name">Application Name *</label>
+                <input type="text" id="app_name" name="app_name" placeholder="e.g. sensor-node or desktop-app" required list="existing_apps">
+                <datalist id="existing_apps">
+                    {% for app in apps %}
+                    <option value="{{ app.name }}"></option>
+                    {% endfor %}
+                </datalist>
+            </div>
+            <div class="form-group">
+                <label for="version">Version Tag *</label>
+                <input type="text" id="version" name="version" placeholder="e.g. 1.0.0 or 2.1.0-rc1" required>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="file">Binary / Build File *</label>
+            <input type="file" id="file" name="file" required style="padding: 8px;">
+        </div>
+
+        <div class="form-group">
+            <label for="devices">Target Devices (comma-separated list, or <code>*</code> for any device) *</label>
+            <input type="text" id="devices" name="devices" value="*" placeholder="e.g. device-01, device-02 or *" required>
+            <small style="color: var(--text-muted); font-size: 0.8rem;">Enter <code>*</code> to target all devices, or list specific device IDs. Unknown devices receive a 404.</small>
+        </div>
+
+        <div class="form-group">
+            <label for="description">Release Notes / Description (optional)</label>
+            <textarea id="description" name="description" rows="2" placeholder="e.g. Bug fixes for wifi reconnection, memory leak patch"></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary">📤 Upload Build</button>
+    </form>
+</div>
+
+<!-- Recent Device Check-ins -->
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <h2 class="card-title" style="margin-bottom: 0;">Recent Device Check-ins</h2>
+        <a href="{{ ROUTE_PATH }}/devices" class="btn btn-sm btn-outline">View All Logs</a>
+    </div>
+
+    {% if recent_logs %}
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Device ID</th>
+                    <th>App</th>
+                    <th>Action</th>
+                    <th>Version Served</th>
+                    <th>IP Address</th>
+                    <th>Time</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in recent_logs %}
+                <tr>
+                    <td><code>{{ log.device_id }}</code></td>
+                    <td>{{ log.app_name }}</td>
+                    <td>
+                        {% if log.action == 'check_version' %}
+                        <span class="badge badge-info">check_version</span>
+                        {% elif log.action == 'download_binary' %}
+                        <span class="badge badge-success">download</span>
+                        {% else %}
+                        <span class="badge">{{ log.action }}</span>
+                        {% endif %}
+                    </td>
+                    <td><span class="badge badge-success">{{ log.version_served }}</span></td>
+                    <td style="font-size: 0.85rem; color: var(--text-muted);">{{ log.ip_address or 'Unknown' }}</td>
+                    <td style="font-size: 0.85rem; color: var(--text-muted);">{{ log.created_at[:19] }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p style="color: var(--text-muted); font-size: 0.9rem;">No device requests recorded yet.</p>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,31 @@
+services:
+  web:
+    build: .
+    image: python:updateman
+    container_name: updateman.myapps.localhost
+    hostname: updateman.myapps.localhost
+    restart: always
+    ports:
+      - "4016:4016"
+    volumes:
+      # Persistent SQLite database and dynamic runtime data
+      - ./data:/app/data
+      # Updates storage directory
+      - ./updates:/app/updates
+      # Configuration files
+      - ./config:/app/config
+      # Mount app code for live reload during development
+      - ./app:/app/app
+    env_file:
+      - .env.example
+    environment:
+      # Optional subpath prefix (e.g. "updates" or ""). Leave empty if hosted at root "/"
+      ROUTE_PATH: "updates"
+    command: ["/app/.venv/bin/uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "4016", "--reload"]
+    
+    networks:
+      - net
+
+networks:
+  net:
+    external: true

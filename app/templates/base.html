@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ app_name | default("Update Manager") }}{% endblock %}</title>
+    <!-- Static stylesheet with ROUTE_PATH prefix -->
+    <link rel="stylesheet" href="{{ ROUTE_PATH }}/static/css/style.css">
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <header>
+        <div class="nav-bar">
+            <a href="{{ ROUTE_PATH }}/" class="brand">📦 {{ app_name | default("Update Manager") }}</a>
+            <nav class="nav-links">
+                <a href="{{ ROUTE_PATH }}/">Dashboard</a>
+                <a href="{{ ROUTE_PATH }}/devices">Device Logs</a>
+                <a href="{{ ROUTE_PATH }}/#upload-section">Upload Build</a>
+                <a href="{{ ROUTE_PATH }}/docs" target="_blank">API Docs</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- Flash Alert Messages -->
+        {% if msg %}
+        <div class="alert-banner alert-success">
+            <span>✅ {{ msg }}</span>
+            <button class="alert-close" onclick="this.parentElement.style.display='none'" aria-label="Close alert">&times;</button>
+        </div>
+        {% endif %}
+
+        {% if error %}
+        <div class="alert-banner alert-danger">
+            <span>⚠️ {{ error }}</span>
+            <button class="alert-close" onclick="this.parentElement.style.display='none'" aria-label="Close alert">&times;</button>
+        </div>
+        {% endif %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer>
+        <p>Update Manager &bull; Base URL: <code>{{ base_url | default("https://sasthashub.duckdns.org") }}</code> &bull; Prefix: <code>{{ ROUTE_PATH if ROUTE_PATH else "(root)" }}</code></p>
+    </footer>
+
+    <!-- Static JavaScript with ROUTE_PATH prefix -->
+    <script src="{{ ROUTE_PATH }}/static/js/main.js"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

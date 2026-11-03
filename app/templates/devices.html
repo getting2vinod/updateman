@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}Device Logs — {{ app_name }}{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 20px;">
+    <a href="{{ ROUTE_PATH }}/" style="color: var(--text-muted); text-decoration: none; font-size: 0.9rem;">
+        &larr; Back to Dashboard
+    </a>
+</div>
+
+<div class="header-section">
+    <h1>📡 Device Activity &amp; Check-ins</h1>
+    <p class="subtitle">Real-time log of devices checking for updates and downloading binaries.</p>
+</div>
+
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <h2 class="card-title" style="margin-bottom: 0;">Recent Activity Log</h2>
+        <span class="badge badge-info">{{ logs | length }} entries</span>
+    </div>
+
+    {% if logs %}
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>Device ID</th>
+                    <th>App Name</th>
+                    <th>Action</th>
+                    <th>Version Served</th>
+                    <th>Client IP</th>
+                    <th>User Agent</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td style="font-size: 0.85rem; color: var(--text-muted); white-space: nowrap;">
+                        {{ log.created_at[:19] }}
+                    </td>
+                    <td><code>{{ log.device_id }}</code></td>
+                    <td>
+                        <a href="{{ ROUTE_PATH }}/apps/{{ log.app_name }}" style="text-decoration: none; color: var(--primary);">
+                            {{ log.app_name }}
+                        </a>
+                    </td>
+                    <td>
+                        {% if log.action == 'check_version' %}
+                        <span class="badge badge-info">check_version</span>
+                        {% elif log.action == 'download_binary' %}
+                        <span class="badge badge-success">download</span>
+                        {% else %}
+                        <span class="badge">{{ log.action }}</span>
+                        {% endif %}
+                    </td>
+                    <td><span class="badge badge-success">{{ log.version_served }}</span></td>
+                    <td style="font-size: 0.85rem; color: var(--text-muted);">{{ log.ip_address or 'Unknown' }}</td>
+                    <td style="font-size: 0.75rem; color: var(--text-muted); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ log.user_agent }}">
+                        {{ log.user_agent or '&mdash;' }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p style="color: var(--text-muted); padding: 16px 0;">No device activity recorded yet.</p>
+    {% endif %}
+</div>
+{% endblock %}
+

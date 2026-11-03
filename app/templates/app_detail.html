@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+
+{% block title %}{{ app_name_title }} — {{ app_name }}{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 20px;">
+    <a href="{{ ROUTE_PATH }}/" style="color: var(--text-muted); text-decoration: none; font-size: 0.9rem;">
+        &larr; Back to Dashboard
+    </a>
+</div>
+
+<div class="header-section" style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px;">
+    <div>
+        <h1>📂 {{ app_name_title }}</h1>
+        <p class="subtitle">Version history and remote update endpoints for this application.</p>
+    </div>
+
+    {% if latest %}
+    <div style="display: flex; gap: 8px;">
+        <a href="{{ ROUTE_PATH }}/updates/{{ app_name_title }}/download" class="btn btn-primary">
+            ⬇️ Download Active ({{ latest.version_string }})
+        </a>
+
+        <form method="POST" action="{{ ROUTE_PATH }}/apps/{{ app_name_title }}/rollback" onsubmit="return confirm('Roll back {{ app_name_title }}? This will remove latest version {{ latest.version_string }} and restore the previous version.');" style="display: inline;">
+            <button type="submit" class="btn btn-warning">
+                🔄 Rollback Build
+            </button>
+        </form>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Integration Endpoints Box -->
+<div class="card info-box">
+    <h2 class="card-title">📡 Remote Client Endpoints</h2>
+    <p style="font-size: 0.9rem; margin-bottom: 8px;">
+        Configure your device firmware or client software to poll these links:
+    </p>
+
+    <div style="margin-bottom: 12px;">
+        <label style="font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted);">1. Version Check URL</label>
+        <div class="code-container">
+            <code>{{ base_url }}/updates/&lt;device-id&gt;/{{ app_name_title }}/version.txt</code>
+            <button class="btn btn-sm btn-secondary copy-btn" data-clipboard="{{ base_url }}/updates/<device-id>/{{ app_name_title }}/version.txt">Copy</button>
+        </div>
+    </div>
+
+    <div style="margin-bottom: 12px;">
+        <label style="font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted);">2. Latest Binary Download URL</label>
+        <div class="code-container">
+            <code>{{ base_url }}/updates/&lt;device-id&gt;/{{ app_name_title }}/download</code>
+            <button class="btn btn-sm btn-secondary copy-btn" data-clipboard="{{ base_url }}/updates/<device-id>/{{ app_name_title }}/download">Copy</button>
+        </div>
+    </div>
+
+    <div class="snippet-tabs">
+        <details>
+            <summary style="cursor: pointer; font-size: 0.85rem; font-weight: 600; color: var(--primary);">View Client Code Examples (Curl, Python, ESP32/C++)</summary>
+            <div style="margin-top: 10px;">
+                <p style="font-size: 0.8rem; font-weight: 600;">Bash / Curl:</p>
+                <pre style="background: #1e293b; color: #f8fafc; padding: 10px; border-radius: 6px; font-size: 0.8rem; overflow-x: auto;">
+# 1. Check version
+LATEST=$(curl -s "{{ base_url }}/updates/dev-001/{{ app_name_title }}/version.txt")
+echo "Latest version: $LATEST"
+
+# 2. Download binary if newer
+curl -O "{{ base_url }}/updates/dev-001/{{ app_name_title }}/download"
+</pre>
+                <p style="font-size: 0.8rem; font-weight: 600; margin-top: 8px;">ESP32 (Arduino C++):</p>
+                <pre style="background: #1e293b; color: #f8fafc; padding: 10px; border-radius: 6px; font-size: 0.8rem; overflow-x: auto;">
+HTTPClient http;
+http.begin("{{ base_url }}/updates/" + getDeviceId() + "/{{ app_name_title }}/version.txt");
+int httpCode = http.GET();
+if (httpCode == HTTP_CODE_OK) {
+    String newVersion = http.getString();
+    newVersion.trim();
+    if (newVersion != CURRENT_VERSION) {
+        // Run OTA Update from "{{ base_url }}/updates/" + getDeviceId() + "/{{ app_name_title }}/download"
+    }
+}
+http.end();
+</pre>
+            </div>
+        </details>
+    </div>
+</div>
+
+<!-- Versions Table -->
+<div class="card">
+    <h2 class="card-title">Version History</h2>
+    <p style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 12px;">
+        Each version folder resides in <code>updates/{{ app_name_title }}/&lt;version&gt;/</code>.
+        The top-most version is active.
+    </p>
+
+    {% if versions %}
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Status</th>
+                    <th>Version</th>
+                    <th>Target Devices</th>
+                    <th>Uploaded</th>
+                    <th>Binary File</th>
+                    <th>Size</th>
+                    <th>SHA256</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for v in versions %}
+                <tr {% if loop.first %}style="background-color: #f0fdf4;"{% endif %}>
+                    <td>
+                        {% if loop.first %}
+                        <span class="badge badge-success">ACTIVE</span>
+                        {% else %}
+                        <span class="badge badge-secondary">ARCHIVED</span>
+                        {% endif %}
+                    </td>
+                    <td><strong>{{ v.version_string }}</strong></td>
+                    <td>
+                        {% if v.target_devices == '*' %}
+                        <span class="badge badge-info">* (All)</span>
+                        {% else %}
+                        <span class="badge badge-secondary" title="{{ v.target_devices }}">{{ v.target_devices }}</span>
+                        {% endif %}
+                    </td>
+                    <td style="font-size: 0.85rem; color: var(--text-muted);">{{ v.uploaded_at[:19] }}</td>
+                    <td><code>{{ v.filename or '(no file)' }}</code></td>
+                    <td style="font-size: 0.85rem;">{{ (v.file_size / 1024) | round(1) }} KB</td>
+                    <td>
+                        {% if v.sha256 %}
+                        <span style="font-family: monospace; font-size: 0.75rem;" title="{{ v.sha256 }}">
+                            {{ v.sha256[:8] }}...{{ v.sha256[-6:] }}
+                        </span>
+                        {% else %}
+                        &mdash;
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div style="display: flex; gap: 6px; align-items: center;">
+                            <a href="{{ ROUTE_PATH }}/updates/{{ app_name_title }}/{{ v.version }}/download" class="btn btn-sm btn-secondary" title="Download this version">
+                                ⬇️
+                            </a>
+
+                            <form method="POST" action="{{ ROUTE_PATH }}/apps/{{ app_name_title }}/delete-version" onsubmit="return confirm('Delete version {{ v.version_string }}? Folder will be removed.');" style="display: inline;">
+                                <input type="hidden" name="version" value="{{ v.version }}">
+                                <button type="submit" class="btn btn-sm btn-danger" title="Delete this version folder">
+                                    🗑️
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p style="color: var(--text-muted); padding: 12px 0;">No versions uploaded yet for this app.</p>
+    {% endif %}
+</div>
+
+<!-- Upload New Version for this app -->
+<div class="card">
+    <h2 class="card-title">Upload New Build for {{ app_name_title }}</h2>
+    <form method="POST" action="{{ ROUTE_PATH }}/upload" enctype="multipart/form-data">
+        <input type="hidden" name="app_name" value="{{ app_name_title }}">
+
+        <div class="form-group">
+            <label for="version">Version Tag *</label>
+            <input type="text" id="version" name="version" placeholder="e.g. 1.0.1 or 2.0.0" required>
+        </div>
+
+        <div class="form-group">
+            <label for="devices">Target Devices (comma-separated list, or <code>*</code> for any device) *</label>
+            <input type="text" id="devices" name="devices" value="*" placeholder="e.g. device-01, device-02 or *" required>
+            <small style="color: var(--text-muted); font-size: 0.8rem;">Enter <code>*</code> to target all devices, or list specific device IDs. Unknown devices receive a 404.</small>
+        </div>
+
+        <div class="form-group">
+            <label for="file">Binary / Build File *</label>
+            <input type="file" id="file" name="file" required style="padding: 8px;">
+        </div>
+
+        <div class="form-group">
+            <label for="description">Release Notes (optional)</label>
+            <textarea id="description" name="description" rows="2" placeholder="Changelog for this build"></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary">📤 Upload New Version</button>
+    </form>
+</div>
+{% endblock %}
+
